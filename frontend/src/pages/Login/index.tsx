@@ -51,7 +51,7 @@ export default function Login() {
             <GithubOutlined /> GitDiary
           </Title>
           <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            AI 驱动的实习日记生成器
+            AI 驱动的学习日记生成器
           </Paragraph>
         </div>
 

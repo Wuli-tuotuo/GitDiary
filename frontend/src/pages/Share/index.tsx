@@ -64,7 +64,7 @@ export default function Share() {
           <Title level={3} style={{ color: '#fff', marginBottom: 4 }}>
             <GithubOutlined /> GitDiary 分享
           </Title>
-          <Text style={{ color: 'rgba(255,255,255,0.8)' }}>AI 生成的实习日记</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.8)' }}>AI 生成的学习日记</Text>
         </div>
 
         <Card style={{ borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
@@ -110,7 +110,7 @@ export default function Share() {
             <p>本文由 GitDiary AI 自动生成</p>
             <p>
               <Button type="link" size="small" onClick={() => navigate('/login')}>
-                使用 GitDiary 生成你自己的实习日记
+                使用 GitDiary 生成你自己的学习日记
               </Button>
             </p>
           </div>

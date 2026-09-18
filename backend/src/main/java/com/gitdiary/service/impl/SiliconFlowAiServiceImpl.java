@@ -77,8 +77,8 @@ public class SiliconFlowAiServiceImpl implements AiService {
         }
 
         return """
-                你是一位资深的软件开发导师，正在帮助实习生写实习日记。
-                请根据以下 Git 提交记录，生成一份实习日记。
+                你是一位资深的软件开发导师，正在帮助学习生写学习日记。
+                请根据以下 Git 提交记录，生成一份学习日记。
 
                 仓库名称: %s
                 提交记录:
@@ -87,7 +87,7 @@ public class SiliconFlowAiServiceImpl implements AiService {
                 请严格按照以下 JSON 格式返回（不要返回其他内容，不要用 markdown 代码块包裹）：
                 {
                   "title": "日记标题（简洁概括本周/今日工作）",
-                  "content": "实习日记正文，用 Markdown 格式，包含：1. 今日工作内容概述 2. 具体完成的任务和代码修改说明 3. 遇到的问题和解决方案 4. 心得体会",
+                  "content": "学习日记正文，用 Markdown 格式，包含：1. 今日工作内容概述 2. 具体完成的任务和代码修改说明 3. 遇到的问题和解决方案 4. 心得体会",
                   "knowledgePoints": [
                     {
                       "name": "知识点名称",
@@ -115,7 +115,7 @@ public class SiliconFlowAiServiceImpl implements AiService {
         Map<String, Object> requestBody = Map.of(
                 "model", aiProperties.getModel(),
                 "messages", List.of(
-                        Map.of("role", "system", "content", "你是一位专业的软件开发导师，擅长根据代码提交记录生成实习日记和知识点总结。"),
+                        Map.of("role", "system", "content", "你是一位专业的软件开发导师，擅长根据代码提交记录生成学习日记和知识点总结。"),
                         Map.of("role", "user", "content", prompt)
                 ),
                 "temperature", 0.7,
@@ -147,7 +147,7 @@ public class SiliconFlowAiServiceImpl implements AiService {
 
             JsonNode root = objectMapper.readTree(jsonStr);
 
-            String title = root.path("title").asText("实习日记");
+            String title = root.path("title").asText("学习日记");
             String content = root.path("content").asText("");
 
             List<KnowledgePointDTO> knowledgePoints = new ArrayList<>();
@@ -173,7 +173,7 @@ public class SiliconFlowAiServiceImpl implements AiService {
             log.error("解析 AI 响应失败，原始响应: {}", aiResponse, e);
             // 解析失败时，把原始内容作为日记内容返回
             return GenerateDiaryResponse.builder()
-                    .title("实习日记")
+                    .title("学习日记")
                     .content(aiResponse)
                     .knowledgePoints(new ArrayList<>())
                     .commitCount(commitCount)

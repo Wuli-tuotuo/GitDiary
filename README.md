@@ -1,6 +1,6 @@
-# GitDiary - AI 驱动的实习日记生成器
+# GitDiary - AI 驱动的学习日记生成器
 
-> 自动读取 GitHub 代码提交记录，用 AI 生成包含知识点总结的实习日记，告别手写日报的烦恼。
+> 自动读取 GitHub 代码提交记录，用 AI 生成包含知识点总结的学习日记，告别手写日报的烦恼。
 
 ![GitHub](https://img.shields.io/badge/React-19-61dafb)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-6db33f)
@@ -10,7 +10,7 @@
 ## ✨ 功能特性
 
 - 🔗 **GitHub 一键登录** — OAuth 授权，自动同步仓库列表
-- 📝 **AI 智能生成** — 分析代码提交记录和 diff，自动生成实习日记
+- 📝 **AI 智能生成** — 分析代码提交记录和 diff，自动生成学习日记
 - 🧠 **知识点提取** — 自动识别代码中用到的技术知识点，分类整理
 - 📊 **数据统计看板** — 提交趋势、代码变更、技术栈分布、高频知识点
 - 📤 **多格式导出** — 支持 Markdown、PDF 导出，一键复制
