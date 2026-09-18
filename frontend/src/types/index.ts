@@ -71,6 +71,30 @@ export interface GenerateDiaryRequest {
   repositoryId: number;
   startDate: string;
   endDate: string;
+  selectedFiles?: string[];
+}
+
+// 后端 CommitDTO 结构
+export interface CommitDTO {
+  sha: string;
+  commit: {
+    message: string;
+    author: {
+      name: string;
+      email: string;
+      date: string;
+    };
+  };
+  files?: CommitFileDTO[];
+}
+
+export interface CommitFileDTO {
+  filename: string;
+  status: string;
+  additions: number;
+  deletions: number;
+  changes: number;
+  patch?: string;
 }
 
 // 日记生成响应

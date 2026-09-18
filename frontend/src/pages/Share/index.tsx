@@ -28,6 +28,14 @@ export default function Share() {
         return;
       }
       const data = await getSharedDiary(token);
+      // 兼容后端返回的 JSON 字符串
+      if (data && typeof data.knowledgePoints === 'string') {
+        try {
+          data.knowledgePoints = JSON.parse(data.knowledgePoints);
+        } catch {
+          data.knowledgePoints = [];
+        }
+      }
       setDiary(data);
     } catch (err: any) {
       setError(err.response?.data?.message || '分享链接不存在或已过期');

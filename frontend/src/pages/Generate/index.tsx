@@ -13,6 +13,9 @@ import {
   Space,
   Divider,
   Alert,
+  Checkbox,
+  List,
+  Badge,
 } from 'antd';
 import {
   ThunderboltOutlined,
@@ -20,12 +23,14 @@ import {
   ReloadOutlined,
   PlusOutlined,
   DeleteOutlined,
+  FileOutlined,
+  ArrowRightOutlined,
 } from '@ant-design/icons';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { getRepositories } from '@/api/github';
-import { generateDiary, saveDiary } from '@/api/diary';
-import type { Repository, KnowledgePoint, GenerateDiaryResponse } from '@/types';
+import { generateDiary, saveDiary, getCommitFiles } from '@/api/diary';
+import type { Repository, KnowledgePoint, GenerateDiaryResponse, CommitDTO, CommitFileDTO } from '@/types';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -39,6 +44,12 @@ export default function Generate() {
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<GenerateDiaryResponse | null>(null);
   const [form] = Form.useForm();
+
+  // 两步流程：step 1=选择条件, step 2=选择文件, step 3=生成结果
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [commits, setCommits] = useState<CommitDTO[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [filesLoading, setFilesLoading] = useState(false);
 
   // 编辑状态
   const [title, setTitle] = useState('');
@@ -69,9 +80,68 @@ export default function Generate() {
     }
   };
 
-  const handleGenerate = async () => {
+  // 第一步：获取提交记录和文件列表
+  const handleLoadCommits = async () => {
     try {
       const values = await form.validateFields();
+      setFilesLoading(true);
+      const data = await getCommitFiles({
+        repositoryId: values.repositoryId,
+        startDate: values.dateRange[0].format('YYYY-MM-DD'),
+        endDate: values.dateRange[1].format('YYYY-MM-DD'),
+      });
+      setCommits(data);
+      // 默认全选所有文件
+      const allFiles = new Set<string>();
+      data.forEach((commit) => {
+        commit.files?.forEach((file) => {
+          allFiles.add(file.filename);
+        });
+      });
+      setSelectedFiles(allFiles);
+      setStep(2);
+      message.success(`获取到 ${data.length} 次提交，共 ${allFiles.size} 个变更文件`);
+    } catch (error) {
+      console.error('获取提交记录失败', error);
+    } finally {
+      setFilesLoading(false);
+    }
+  };
+
+  // 切换文件选中状态
+  const toggleFile = (filename: string) => {
+    const newSet = new Set(selectedFiles);
+    if (newSet.has(filename)) {
+      newSet.delete(filename);
+    } else {
+      newSet.add(filename);
+    }
+    setSelectedFiles(newSet);
+  };
+
+  // 全选/取消全选
+  const toggleAllFiles = (checkAll: boolean) => {
+    if (checkAll) {
+      const allFiles = new Set<string>();
+      commits.forEach((commit) => {
+        commit.files?.forEach((file) => {
+          allFiles.add(file.filename);
+        });
+      });
+      setSelectedFiles(allFiles);
+    } else {
+      setSelectedFiles(new Set());
+    }
+  };
+
+  // 第二步：AI 生成日记
+  const handleGenerate = async () => {
+    if (selectedFiles.size === 0) {
+      message.warning('请至少选择一个文件');
+      return;
+    }
+    try {
+      const values = form.getFieldsValue();
       setGenerating(true);
       setResult(null);
 
@@ -79,12 +149,14 @@ export default function Generate() {
         repositoryId: values.repositoryId,
         startDate: values.dateRange[0].format('YYYY-MM-DD'),
         endDate: values.dateRange[1].format('YYYY-MM-DD'),
+        selectedFiles: Array.from(selectedFiles),
       });
 
       setResult(response);
       setTitle(response.title);
       setContent(response.content);
       setKnowledgePoints(response.knowledgePoints || []);
+      setStep(3);
       message.success('日记生成成功');
     } catch (error) {
       console.error('生成日记失败', error);
@@ -135,11 +207,25 @@ export default function Generate() {
     setKnowledgePoints(knowledgePoints.filter((_, i) => i !== index));
   };
 
+  // 收集所有文件并去重
+  const allFiles = new Map<string, CommitFileDTO & { commitMessage: string }>();
+  commits.forEach((commit) => {
+    commit.files?.forEach((file) => {
+      if (!allFiles.has(file.filename)) {
+        allFiles.set(file.filename, {
+          ...file,
+          commitMessage: commit.commit?.message || '',
+        });
+      }
+    });
+  });
+
   return (
     <div>
       <Title level={3} style={{ marginTop: 0 }}>生成日记</Title>
 
-      <Card title="选择条件" style={{ marginBottom: 24 }}>
+      {/* 第一步：选择条件 */}
+      <Card title="第一步：选择仓库和日期" style={{ marginBottom: 24 }}>
         <Form form={form} layout="inline" style={{ rowGap: 16 }}>
           <Form.Item
             name="repositoryId"
@@ -165,34 +251,107 @@ export default function Generate() {
           <Form.Item>
             <Button
               type="primary"
-              icon={<ThunderboltOutlined />}
-              loading={generating}
-              onClick={handleGenerate}
+              icon={<FileOutlined />}
+              loading={filesLoading}
+              onClick={handleLoadCommits}
             >
-              AI 生成日记
+              获取提交记录
             </Button>
           </Form.Item>
         </Form>
       </Card>
 
-      {generating && (
-        <Card>
-          <div style={{ textAlign: 'center', padding: 48 }}>
-            <Spin size="large" />
-            <Title level={4} style={{ marginTop: 16 }}>AI 正在生成日记...</Title>
-            <Text type="secondary">正在分析代码提交记录和知识点，请稍候</Text>
-          </div>
+      {/* 第二步：选择文件 */}
+      {step === 2 && (
+        <Card
+          title={
+            <Space>
+              <span>第二步：选择要分析的文件</span>
+              <Badge count={selectedFiles.size} color="blue" />
+              <Text type="secondary" style={{ fontSize: 14 }}>已选 {selectedFiles.size} / {allFiles.size} 个文件</Text>
+            </Space>
+          }
+          extra={
+            <Space>
+              <Checkbox
+                checked={selectedFiles.size === allFiles.size && allFiles.size > 0}
+                onChange={(e) => toggleAllFiles(e.target.checked)}
+              >
+                全选
+              </Checkbox>
+              <Button
+                type="primary"
+                icon={<ThunderboltOutlined />}
+                loading={generating}
+                onClick={handleGenerate}
+                disabled={selectedFiles.size === 0}
+              >
+                AI 生成日记
+              </Button>
+            </Space>
+          }
+          style={{ marginBottom: 24 }}
+        >
+          {generating ? (
+            <div style={{ textAlign: 'center', padding: 48 }}>
+              <Spin size="large" />
+              <Title level={4} style={{ marginTop: 16 }}>AI 正在生成日记...</Title>
+              <Text type="secondary">正在分析 {selectedFiles.size} 个文件的代码变更，请稍候</Text>
+            </div>
+          ) : (
+            <>
+              <Alert
+                message={`共 ${commits.length} 次提交，${allFiles.size} 个变更文件。勾选你想让 AI 分析的文件，未选中的文件不会被分析。`}
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+              <List
+                size="small"
+                bordered
+                dataSource={Array.from(allFiles.entries())}
+                renderItem={([filename, file]) => {
+                  const isChecked = selectedFiles.has(filename);
+                  return (
+                    <List.Item
+                      style={{ cursor: 'pointer', opacity: isChecked ? 1 : 0.6 }}
+                      onClick={() => toggleFile(filename)}
+                    >
+                      <Checkbox checked={isChecked} style={{ marginRight: 12 }} />
+                      <div style={{ flex: 1 }}>
+                        <Text strong style={{ fontFamily: 'monospace' }}>{filename}</Text>
+                        <div style={{ marginTop: 4 }}>
+                          <Space size="middle">
+                            <Tag color="green">+{file.additions}</Tag>
+                            <Tag color="red">-{file.deletions}</Tag>
+                            <Text type="secondary" style={{ fontSize: 12 }}>{file.commitMessage}</Text>
+                          </Space>
+                        </div>
+                      </div>
+                    </List.Item>
+                  );
+                }}
+              />
+            </>
+          )}
         </Card>
       )}
 
-      {result && !generating && (
+      {/* 第三步：生成结果 */}
+      {step === 3 && result && !generating && (
         <>
           <Card
             title="编辑日记"
             extra={
               <Space>
-                <Button icon={<ReloadOutlined />} onClick={handleGenerate}>
-                  重新生成
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={() => {
+                    setStep(2);
+                    setResult(null);
+                  }}
+                >
+                  重新选择文件
                 </Button>
                 <Button type="primary" icon={<SaveOutlined />} onClick={handleSave}>
                   保存日记
@@ -275,12 +434,12 @@ export default function Generate() {
         </>
       )}
 
-      {!result && !generating && (
+      {step === 1 && !filesLoading && (
         <Card>
           <div style={{ textAlign: 'center', padding: 48 }}>
             <ThunderboltOutlined style={{ fontSize: 48, color: '#1677ff' }} />
-            <Title level={4} style={{ marginTop: 16 }}>选择仓库和日期范围，开始生成日记</Title>
-            <Text type="secondary">AI 将自动分析代码提交记录，生成学习日记和知识点总结</Text>
+            <Title level={4} style={{ marginTop: 16 }}>选择仓库和日期范围，获取提交记录</Title>
+            <Text type="secondary">先获取提交记录，然后你可以选择要分析的文件，AI 会根据你选择的文件生成学习日记</Text>
           </div>
         </Card>
       )}

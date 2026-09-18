@@ -1,9 +1,18 @@
 import request from './request';
-import type { Diary, GenerateDiaryRequest, GenerateDiaryResponse, PageResult, ShareLink } from '@/types';
+import type { CommitDTO, Diary, GenerateDiaryRequest, GenerateDiaryResponse, PageResult, ShareLink } from '@/types';
 
 // 生成日记
 export function generateDiary(data: GenerateDiaryRequest): Promise<GenerateDiaryResponse> {
   return request.post('/diaries/generate', data);
+}
+
+// 获取提交记录和文件列表
+export function getCommitFiles(params: {
+  repositoryId: number;
+  startDate: string;
+  endDate: string;
+}): Promise<CommitDTO[]> {
+  return request.get('/diaries/commits/files', { params });
 }
 
 // 保存日记

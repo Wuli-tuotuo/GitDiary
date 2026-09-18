@@ -49,8 +49,11 @@ public class SiliconFlowAiServiceImpl implements AiService {
     }
 
     private String buildPrompt(String repositoryName, List<CommitDTO> commits) {
+        // 限制最多处理 5 次提交
+        int maxCommits = Math.min(commits.size(), 5);
         StringBuilder commitInfo = new StringBuilder();
-        for (int i = 0; i < commits.size(); i++) {
+
+        for (int i = 0; i < maxCommits; i++) {
             CommitDTO commit = commits.get(i);
             commitInfo.append(String.format("\n=== 提交 %d ===\n", i + 1));
             commitInfo.append("SHA: ").append(commit.getSha()).append("\n");
@@ -62,18 +65,29 @@ public class SiliconFlowAiServiceImpl implements AiService {
                 }
             }
             if (commit.getFiles() != null && !commit.getFiles().isEmpty()) {
-                commitInfo.append("修改的文件:\n");
-                for (CommitFileDTO file : commit.getFiles()) {
+                // 按变更行数排序，只取变更最多的前 10 个文件
+                List<CommitFileDTO> sortedFiles = commit.getFiles().stream()
+                        .sorted((a, b) -> (b.getAdditions() + b.getDeletions()) - (a.getAdditions() + a.getDeletions()))
+                        .limit(10)
+                        .toList();
+
+                commitInfo.append("修改的文件 (共").append(commit.getFiles().size()).append("个，展示前").append(sortedFiles.size()).append("个):\n");
+                for (CommitFileDTO file : sortedFiles) {
                     commitInfo.append(String.format("  - %s (+%d, -%d)\n",
                             file.getFilename(), file.getAdditions(), file.getDeletions()));
                     if (file.getPatch() != null && !file.getPatch().isEmpty()) {
-                        String patch = file.getPatch().length() > 2000
-                                ? file.getPatch().substring(0, 2000) + "\n...(已截断)"
+                        // 每个文件 patch 最多 500 字符
+                        String patch = file.getPatch().length() > 500
+                                ? file.getPatch().substring(0, 500) + "\n...(已截断)"
                                 : file.getPatch();
                         commitInfo.append("  代码变更:\n```diff\n").append(patch).append("\n```\n");
                     }
                 }
             }
+        }
+
+        if (commits.size() > maxCommits) {
+            commitInfo.append("\n... 还有 ").append(commits.size() - maxCommits).append(" 次提交未展示\n");
         }
 
         return """

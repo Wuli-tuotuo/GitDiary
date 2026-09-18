@@ -48,12 +48,44 @@ public class DiaryServiceImpl implements DiaryService {
             throw new BusinessException("所选日期范围内没有提交记录");
         }
 
+        // 3. 如果用户指定了要分析的文件，过滤提交记录
+        if (request.getSelectedFiles() != null && !request.getSelectedFiles().isEmpty()) {
+            log.info("用户选择了 {} 个文件进行分析", request.getSelectedFiles().size());
+            for (CommitDTO commit : commits) {
+                if (commit.getFiles() != null) {
+                    commit.setFiles(commit.getFiles().stream()
+                            .filter(file -> request.getSelectedFiles().contains(file.getFilename()))
+                            .toList());
+                }
+            }
+            // 过滤掉没有文件的提交
+            commits = commits.stream()
+                    .filter(c -> c.getFiles() != null && !c.getFiles().isEmpty())
+                    .toList();
+        }
+
+        if (commits.isEmpty()) {
+            throw new BusinessException("所选文件中没有有效的变更记录");
+        }
+
         log.info("获取到 {} 条提交记录，开始生成日记", commits.size());
 
-        // 3. 调用 AI 生成日记
+        // 4. 调用 AI 生成日记
         GenerateDiaryResponse response = aiService.generateDiary(repo.getFullName(), commits);
 
         return response;
+    }
+
+    @Override
+    public List<CommitDTO> getCommitFiles(Long userId, Long repositoryId, String startDate, String endDate) {
+        List<CommitDTO> commits = githubService.getCommitsForDateRange(userId, repositoryId, startDate, endDate);
+        // 简化返回，只保留文件列表和基本信息，不返回完整 diff（减少数据量）
+        for (CommitDTO commit : commits) {
+            if (commit.getFiles() != null) {
+                commit.getFiles().forEach(file -> file.setPatch(null));
+            }
+        }
+        return commits;
     }
 
     @Override

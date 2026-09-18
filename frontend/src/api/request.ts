@@ -25,9 +25,9 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response) => {
     const res = response.data;
-    // 如果是二进制文件（导出），直接返回
+    // 如果是二进制文件（导出），直接返回 Blob 数据
     if (response.config.responseType === 'blob') {
-      return response;
+      return response.data;
     }
     if (res.code !== 0 && res.code !== 200) {
       message.error(res.message || '请求失败');

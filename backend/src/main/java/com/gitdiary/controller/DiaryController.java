@@ -1,6 +1,7 @@
 package com.gitdiary.controller;
 
 import com.gitdiary.common.Result;
+import com.gitdiary.dto.CommitDTO;
 import com.gitdiary.dto.GenerateDiaryRequest;
 import com.gitdiary.dto.GenerateDiaryResponse;
 import com.gitdiary.dto.SaveDiaryRequest;
@@ -27,6 +28,17 @@ import java.time.LocalDate;
 public class DiaryController {
 
     private final DiaryService diaryService;
+
+    @Operation(summary = "获取提交记录和文件列表（用于选择要分析的文件）")
+    @GetMapping("/commits/files")
+    public Result<java.util.List<CommitDTO>> getCommitFiles(
+            @RequestParam Long repositoryId,
+            @RequestParam String startDate,
+            @RequestParam String endDate) {
+        Long userId = JwtAuthenticationInterceptor.getCurrentUser().getId();
+        java.util.List<CommitDTO> commits = diaryService.getCommitFiles(userId, repositoryId, startDate, endDate);
+        return Result.success(commits);
+    }
 
     @Operation(summary = "AI 生成日记")
     @PostMapping("/generate")

@@ -65,7 +65,16 @@ export default function DiaryDetail() {
       setDiary(data);
       setTitle(data.title);
       setContent(data.content);
-      setKnowledgePoints(data.knowledgePoints || []);
+      // 兼容后端返回的 JSON 字符串
+      let points = data.knowledgePoints;
+      if (typeof points === 'string') {
+        try {
+          points = JSON.parse(points);
+        } catch {
+          points = [];
+        }
+      }
+      setKnowledgePoints(Array.isArray(points) ? points : []);
     } catch (error) {
       message.error('加载日记失败');
     } finally {
